@@ -1,16 +1,98 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import TopNavBar from "../../components/TopNavBar";
 import SolutionsFooter from "../../components/SolutionsFooter";
-import heroArchitecturalInterior from "../../assets/images/hero-architectural-interior.jpg";
 import acousticPvcDoors from "../../assets/images/acoustic-pvc-doors.jpg";
 import flutedWallPanels from "../../assets/images/fluted-wall-panels.jpg";
 import wpcExteriorDecking from "../../assets/images/wpc-exterior-decking.jpg";
 import materialSamples from "../../assets/images/material-samples.jpg";
+import screen1 from "../../assets/images/screen.png";
+import screen2 from "../../assets/images/screen2.png";
+import screen3 from "../../assets/images/screen3.png";
+
+const heroSlides = [
+  {
+    image: screen1,
+    alt: "Warm-toned outdoor decking terrace with modern furniture and golden hour lighting",
+    headline: "Tactile",
+    headlineAccent: "Warmth.",
+    subtitle: "Fluted wall systems that play with light and shadow.",
+  },
+  {
+    image: screen2,
+    alt: "Fluted charcoal wall panels with warm sunlight casting dramatic shadows in a modern interior",
+    headline: "Archival",
+    headlineAccent: "Elegance.",
+    subtitle: "Pioneering polymer solutions for editorial interiors.",
+  },
+  {
+    image: screen3,
+    alt: "Modern minimalist interior with warm wood doors and sun-drenched living space",
+    headline: "Industrial",
+    headlineAccent: "Precision.",
+    subtitle: "Acoustic PVC systems crafted for enduring beauty.",
+  },
+];
+
+const SLIDE_INTERVAL = 6000;
 
 export default function SolutionsPage() {
-  const heroImgRef = useRef(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const intervalRef = useRef(null);
   const heroContentRef = useRef(null);
+
+  const goToSlide = useCallback(
+    (index) => {
+      if (isTransitioning || index === currentSlide) return;
+      setIsTransitioning(true);
+      setCurrentSlide(index);
+      setTimeout(() => setIsTransitioning(false), 900);
+    },
+    [isTransitioning, currentSlide]
+  );
+
+  const nextSlide = useCallback(() => {
+    goToSlide((currentSlide + 1) % heroSlides.length);
+  }, [currentSlide, goToSlide]);
+
+  const prevSlide = useCallback(() => {
+    goToSlide((currentSlide - 1 + heroSlides.length) % heroSlides.length);
+  }, [currentSlide, goToSlide]);
+
+  // Auto-advance
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      setIsTransitioning((prev) => {
+        if (!prev) {
+          setCurrentSlide((c) => (c + 1) % heroSlides.length);
+          setTimeout(() => setIsTransitioning(false), 900);
+          return true;
+        }
+        return prev;
+      });
+    }, SLIDE_INTERVAL);
+    return () => clearInterval(intervalRef.current);
+  }, []);
+
+  // Reset auto-advance on manual interaction
+  const handleManualNav = useCallback(
+    (action) => {
+      clearInterval(intervalRef.current);
+      action();
+      intervalRef.current = setInterval(() => {
+        setIsTransitioning((prev) => {
+          if (!prev) {
+            setCurrentSlide((c) => (c + 1) % heroSlides.length);
+            setTimeout(() => setIsTransitioning(false), 900);
+            return true;
+          }
+          return prev;
+        });
+      }, SLIDE_INTERVAL);
+    },
+    []
+  );
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia(
@@ -40,19 +122,17 @@ export default function SolutionsPage() {
         });
       }, 50);
 
-      // Hero Scroll Parallax & Scale
+      // Hero Scroll Parallax
       const heroSection = document.querySelector("#solutions-hero");
-      const heroImg = heroImgRef.current;
       const heroContent = heroContentRef.current;
 
       const handleScroll = () => {
-        if (!heroSection || !heroImg || !heroContent) return;
+        if (!heroSection || !heroContent) return;
         const scrollY = window.scrollY;
         const heroHeight = heroSection.offsetHeight;
 
         if (scrollY <= heroHeight) {
           const progress = scrollY / heroHeight;
-          heroImg.style.transform = `translateY(${scrollY * 0.4}px)`;
           const scale = 1 - progress * 0.1;
           const opacity = 1 - progress * 1.5;
           heroContent.style.transform = `scale(${scale})`;
@@ -82,54 +162,150 @@ export default function SolutionsPage() {
       <TopNavBar activePage="solutions" />
 
       <main className="pt-16 sm:pt-20 pb-16 sm:pb-32 flex-grow">
-        {/* Hero Section */}
+        {/* Hero Carousel Section */}
         <section
           id="solutions-hero"
           className="relative min-h-[450px] sm:min-h-[600px] md:min-h-[800px] flex items-center px-4 sm:px-6 md:px-12 max-w-[1920px] mx-auto overflow-hidden"
         >
+          {/* Carousel Background Images */}
           <div className="absolute inset-0 z-0 px-4 sm:px-6 md:px-12 py-4 sm:py-6">
-            <div className="w-full h-full relative overflow-hidden rounded-xl sm:rounded-2xl reveal-image visible">
-              <div
-                ref={heroImgRef}
-                className="hero-img-wrapper absolute inset-0 w-full h-full"
-              >
-                <img
-                  alt="A stunning, modern architectural interior featuring extensive use of warm-toned wood and elegant polymer panelling"
-                  className="absolute inset-0 w-full h-full object-cover object-center scale-[1.1]"
-                  src={heroArchitecturalInterior}
-                />
-              </div>
-              <div className="absolute inset-0 bg-surface/50"></div>
+            <div className="w-full h-full relative overflow-hidden rounded-xl sm:rounded-2xl">
+              {heroSlides.map((slide, index) => (
+                <div
+                  key={index}
+                  className="absolute inset-0 w-full h-full"
+                  style={{
+                    opacity: currentSlide === index ? 1 : 0,
+                    transform: currentSlide === index ? "scale(1.02)" : "scale(1.08)",
+                    transition: "opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1), transform 6s cubic-bezier(0.4, 0, 0.2, 1)",
+                    zIndex: currentSlide === index ? 1 : 0,
+                  }}
+                >
+                  <img
+                    alt={slide.alt}
+                    className="absolute inset-0 w-full h-full object-cover object-center"
+                    src={slide.image}
+                  />
+                </div>
+              ))}
+              {/* Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-black/10 z-[2]"></div>
             </div>
           </div>
+
+          {/* Carousel Content */}
           <div
             ref={heroContentRef}
             className="relative z-10 w-full max-w-4xl mx-auto text-center hero-content"
           >
-            <h1 className="font-headline text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-medium leading-tight tracking-tight text-on-surface mb-4 sm:mb-6 drop-shadow-sm stagger-in stagger-hero-1">
-              Archival Industrial
-              <br />
-              <span className="text-primary italic">Excellence.</span>
-            </h1>
-            <p className="font-body text-base sm:text-lg md:text-xl text-on-surface-variant max-w-2xl mx-auto mb-6 sm:mb-10 leading-relaxed stagger-in stagger-hero-2 px-2">
-              Pioneering architectural polymer solutions. We craft spaces with
-              warm minimalism, blending structural integrity with editorial
-              elegance.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 stagger-in stagger-hero-3">
+            {heroSlides.map((slide, index) => (
+              <div
+                key={index}
+                className="absolute inset-0 flex flex-col items-center justify-center"
+                style={{
+                  opacity: currentSlide === index ? 1 : 0,
+                  transform: currentSlide === index
+                    ? "translateY(0)"
+                    : "translateY(24px)",
+                  transition: "opacity 0.7s ease, transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)",
+                  pointerEvents: currentSlide === index ? "auto" : "none",
+                }}
+              >
+                <h1 className="font-headline text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-medium leading-tight tracking-tight text-white mb-2 sm:mb-4 drop-shadow-lg">
+                  {slide.headline}
+                  <br />
+                  <span className="text-primary italic">{slide.headlineAccent}</span>
+                </h1>
+                <p className="font-body text-base sm:text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-4">
+                  {slide.subtitle}
+                </p>
+              </div>
+            ))}
+
+            {/* Static CTA Buttons */}
+            <div className="relative flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-[240px] sm:mt-[280px] md:mt-[300px]">
               <a
-                className="px-6 sm:px-8 py-3 sm:py-4 bg-primary text-on-primary font-label font-semibold rounded-lg hover:bg-primary/90 transition-colors w-full sm:w-auto text-center text-sm sm:text-base"
+                className="px-6 sm:px-8 py-3 sm:py-4 bg-primary text-on-primary font-label font-semibold rounded-lg hover:bg-primary/90 transition-colors w-full sm:w-auto text-center text-sm sm:text-base shadow-lg"
                 href="#gallery"
               >
                 Explore Solutions
               </a>
               <a
-                className="px-6 sm:px-8 py-3 sm:py-4 border border-outline-variant text-on-surface font-label font-semibold rounded-lg hover:border-primary hover:text-primary transition-colors w-full sm:w-auto text-center text-sm sm:text-base"
+                className="px-6 sm:px-8 py-3 sm:py-4 border border-white/40 text-white font-label font-semibold rounded-lg hover:border-primary hover:text-primary hover:bg-white/10 backdrop-blur-sm transition-all w-full sm:w-auto text-center text-sm sm:text-base"
                 href="#editorial"
               >
                 View Technical Specs
               </a>
             </div>
+          </div>
+
+          {/* Carousel Navigation */}
+          <div className="absolute bottom-8 sm:bottom-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
+            {/* Prev Arrow */}
+            <button
+              onClick={() => handleManualNav(prevSlide)}
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-white/30 bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/25 hover:border-white/50 transition-all duration-300 group"
+              aria-label="Previous slide"
+            >
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5 transform group-hover:-translate-x-0.5 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+
+            {/* Dot Indicators */}
+            <div className="flex items-center gap-2">
+              {heroSlides.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleManualNav(() => goToSlide(index))}
+                  className="group p-1"
+                  aria-label={`Go to slide ${index + 1}`}
+                >
+                  <div
+                    className="rounded-full transition-all duration-500 ease-out"
+                    style={{
+                      width: currentSlide === index ? "28px" : "8px",
+                      height: "8px",
+                      backgroundColor:
+                        currentSlide === index
+                          ? "#c2652a"
+                          : "rgba(255,255,255,0.45)",
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+
+            {/* Next Arrow */}
+            <button
+              onClick={() => handleManualNav(nextSlide)}
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border border-white/30 bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/25 hover:border-white/50 transition-all duration-300 group"
+              aria-label="Next slide"
+            >
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5 transform group-hover:translate-x-0.5 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
           </div>
         </section>
 
@@ -275,3 +451,4 @@ export default function SolutionsPage() {
     </div>
   );
 }
+
